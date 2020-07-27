@@ -12,10 +12,18 @@ class Encoder(tf.keras.layers.Layer):
         your code
         """
         # tf.keras.layers.GRU自动匹配cpu、gpu
+        self.embedding = tf.keras.layers.Embedding(vocab_size,
+                                                   embedding_dim,
+                                                   weights=[embedding_matrix],
+                                                   trainable=False)
         """
         定义单向的RNN、GRU、LSTM层
         your code
         """
+        self.gru = tf.keras.layers.GRU(self.enc_units,
+                                       return_sequences=True,
+                                       return_state=True,
+                                       recurrent_initialize='glorot_uniform')
         self.bigru = tf.keras.layers.Bidirectional(self.gru, merge_mode='concat')
 
     def call(self, x, hidden):
@@ -28,4 +36,3 @@ class Encoder(tf.keras.layers.Layer):
 
     def initialize_hidden_state(self):
         return tf.zeros((self.batch_sz, 2*self.enc_units))
-    
