@@ -50,7 +50,7 @@ class Decoder(tf.keras.layers.Layer):
         定义Embedding层，加载预训练的词向量
         your code
         """
-        self.Embedding = tf.keras.layers.Embedding(vocab_size,
+        self.embedding = tf.keras.layers.Embedding(vocab_size,
                                                    embedding_dim,
                                                    weights=[embedding_matrix],
                                                    trainable=False)
