@@ -28,7 +28,7 @@ class BahdanauAttention(tf.keras.layers.Layer):
         定义score
         your code
         """
-        score = self.V(tf.nn.tanh(self.W1(self.hidden_with_time_axis) + self.W2(enc_output)))
+        score = self.V(tf.nn.tanh(self.W1(hidden_with_time_axis) + self.W2(enc_output)))
         # Calculate attention distribution
         """
         归一化score，得到attn_dist
@@ -61,8 +61,8 @@ class Decoder(tf.keras.layers.Layer):
         self.gru = tf.keras.layers.GRU(dec_units,
                                        return_sequences=True,
                                        return_state=True,
-                                       return_initializer='glorot_uniform')
-        self.bigru = tf.keras.layers.Bidirectional(self.gru, merged_mode='concat')
+                                       recurrent_initializer='glorot_uniform')
+        self.bigru = tf.keras.layers.Bidirectional(self.gru, merge_mode='concat')
         # self.dropout = tf.keras.layers.Dropout(0.5)
         """
         定义最后的fc层，用于预测词的概率

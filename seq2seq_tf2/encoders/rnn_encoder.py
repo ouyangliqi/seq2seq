@@ -23,7 +23,7 @@ class Encoder(tf.keras.layers.Layer):
         self.gru = tf.keras.layers.GRU(self.enc_units,
                                        return_sequences=True,
                                        return_state=True,
-                                       recurrent_initialize='glorot_uniform')
+                                       recurrent_initializer='glorot_uniform')
         self.bigru = tf.keras.layers.Bidirectional(self.gru, merge_mode='concat')
 
     def call(self, x, hidden):
