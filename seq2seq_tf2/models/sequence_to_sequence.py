@@ -43,7 +43,7 @@ class SequenceToSequence(tf.keras.Model):
             """
             context_vector, attn_dist = self.attention(dec_hidden, enc_output)
             dec_inp = tf.expand_dims(dec_tar[:, t], 1)
-            _, pred, _ = self.decoder(dec_inp, dec_hidden, enc_output, context_vector)
+            _, pred, dec_hidden = self.decoder(dec_inp, dec_hidden, enc_output, context_vector)
             predictions.append(pred)
             attentions.append(attn_dist)
 
