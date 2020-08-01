@@ -63,5 +63,3 @@ if __name__ == '__main__':
     # 需要更换成自己数据的存储地址
     parse_data('{}/datasets/AutoMaster_TrainSet.csv'.format(BASE_DIR),
                '{}/datasets/AutoMaster_TestSet.csv'.format(BASE_DIR))
-
-

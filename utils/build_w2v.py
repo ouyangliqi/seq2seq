@@ -65,4 +65,3 @@ if __name__ == '__main__':
           '{}/datasets/test_set.seg_x.txt'.format(BASE_DIR),
           out_path='{}/datasets/word2vec.txt'.format(BASE_DIR),
           sentence_path='{}/datasets/sentences.txt'.format(BASE_DIR))
-
