@@ -62,13 +62,14 @@ class Decoder(tf.keras.layers.Layer):
                                        return_sequences=True,
                                        return_state=True,
                                        recurrent_initializer='glorot_uniform')
-        self.bigru = tf.keras.layers.Bidirectional(self.gru, merge_mode='concat')
+        # self.bigru = tf.keras.layers.Bidirectional(self.gru, merge_mode='concat')
         # self.dropout = tf.keras.layers.Dropout(0.5)
         """
         定义最后的fc层，用于预测词的概率
         your code
         """
-        self.fc = tf.keras.layers.Dense(vocab_size)
+        self.fc = tf.keras.layers.Dense(vocab_size,
+                                        activation='sigmoid')
 
     def call(self, x, hidden, enc_output, context_vector):
         # enc_output shape == (batch_size, max_length, hidden_size)
