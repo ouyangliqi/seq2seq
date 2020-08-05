@@ -28,7 +28,7 @@ class BahdanauAttention(tf.keras.layers.Layer):
         定义score
         your code
         """
-        score = self.V(tf.nn.tanh(self.W1(hidden_with_time_axis) + self.W2(enc_output)))
+        score = self.V(tf.nn.tanh(self.W1(enc_output) + self.W2(hidden_with_time_axis)))
         # Calculate attention distribution
         """
         归一化score，得到attn_dist
@@ -69,7 +69,7 @@ class Decoder(tf.keras.layers.Layer):
         your code
         """
         self.fc = tf.keras.layers.Dense(vocab_size,
-                                        activation='softmax')
+                                        activation=tf.keras.activations.softmax)
 
     def call(self, x, hidden, enc_output, context_vector):
         # enc_output shape == (batch_size, max_length, hidden_size)
