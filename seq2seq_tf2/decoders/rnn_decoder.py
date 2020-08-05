@@ -69,7 +69,7 @@ class Decoder(tf.keras.layers.Layer):
         your code
         """
         self.fc = tf.keras.layers.Dense(vocab_size,
-                                        activation='sigmoid')
+                                        activation='softmax')
 
     def call(self, x, hidden, enc_output, context_vector):
         # enc_output shape == (batch_size, max_length, hidden_size)
