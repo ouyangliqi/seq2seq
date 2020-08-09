@@ -1,14 +1,15 @@
 import tensorflow as tf
 
 
-class BahdanauAttention(tf.keras.layers.Layer):
+class BahdanauAttentionCoverage(tf.keras.layers.Layer):
     def __init__(self, units):
-        super(BahdanauAttention, self).__init__()
+        super(BahdanauAttentionCoverage, self).__init__()
+        self.Wc = tf.keras.layers.Dense(units)
         self.W1 = tf.keras.layers.Dense(units)
         self.W2 = tf.keras.layers.Dense(units)
         self.V = tf.keras.layers.Dense(1)
 
-    def call(self, dec_hidden, enc_output):
+    def call(self, dec_hidden, enc_output, enc_padding_mask, use_coverage=False, prev_coverage=None):
         """
         :param dec_hidden: shape=(16, 256)
         :param enc_output: shape=(16, 200, 256)
@@ -23,22 +24,54 @@ class BahdanauAttention(tf.keras.layers.Layer):
         hidden_with_time_axis = tf.expand_dims(dec_hidden, 1)  # shape=(16, 1, 256)
         # att_features = self.W1(enc_output) + self.W2(hidden_with_time_axis)
 
-        # Calculate v^T tanh(W_h h_i + W_s s_t + b_attn)
-        """
-        定义score
-        your code
-        """
-        score = self.V(tf.nn.tanh(self.W1(enc_output) + self.W2(hidden_with_time_axis)))
-        # Calculate attention distribution
-        """
-        归一化score，得到attn_dist
-        your code
-        """
-        attn_dist = tf.nn.softmax(score, axis=1)
+        def masked_attention(score):
+            """
+            :param score: shape=(16, 200, 1)
+                        ...
+              [-0.50474256]
+              [-0.47997713]
+              [-0.42284346]]]
+            :return:
+            """
+            attn_dist = tf.squeeze(score, axis=2)  # shape=(16, 200)
+            attn_dist = tf.nn.softmax(attn_dist, axis=1)  # shape=(16, 200)
+            mask = tf.cast(enc_padding_mask, dtype=attn_dist.dtype)
+            attn_dist *= mask
+            masked_sums = tf.reduce_sum(attn_dist, axis=1)
+            attn_dist = attn_dist / tf.reshape(masked_sums, [-1, 1])
+            attn_dist = tf.expand_dims(attn_dist, axis=2)
+            return attn_dist
+
+        if use_coverage and prev_coverage is not None:  # non-first step of coverage
+            # Multiply coverage vector by w_c to get coverage_features.
+            # Calculate v^T tanh(W_h h_i + W_s s_t + w_c c_i^t + b_attn)
+            # shape (batch_size,attn_length)
+            """
+            改造seq2seq中的score，加入coverge
+            your code
+            e = ...
+            """
+            e = self.V(tf.nn.tanh(self.W1(enc_output) + self.W2(hidden_with_time_axis) + self.Wc(prev_coverage)))
+            # Calculate attention distribution
+            attn_dist = masked_attention(e)
+            # Update coverage vector
+            coverage = attn_dist + prev_coverage
+
+        else:
+            # Calculate v^T tanh(W_h h_i + W_s s_t + b_attn)
+            e = self.V(tf.nn.tanh(self.W1(enc_output) + self.W2(hidden_with_time_axis)))  # shape=(16, 200, 1)
+            # Calculate attention distribution
+            attn_dist = masked_attention(e)  # shape=(16, 200, 1)
+            if use_coverage:  # first step of training
+                coverage = attn_dist  # initialize coverage
+            else:
+                coverage = []
+
         # context_vector shape after sum == (batch_size, hidden_size)
         context_vector = attn_dist * enc_output  # shape=(16, 200, 256)
         context_vector = tf.reduce_sum(context_vector, axis=1)  # shape=(16, 256)
-        return context_vector, tf.squeeze(attn_dist, -1)
+        # coverage  shape=(16, 200, 1)
+        return context_vector, tf.squeeze(attn_dist, -1), coverage
 
 
 class Decoder(tf.keras.layers.Layer):
@@ -46,37 +79,22 @@ class Decoder(tf.keras.layers.Layer):
         super(Decoder, self).__init__()
         self.batch_sz = batch_sz
         self.dec_units = dec_units
-        """
-        定义Embedding层，加载预训练的词向量
-        your code
-        """
-        self.embedding = tf.keras.layers.Embedding(vocab_size,
-                                                   embedding_dim,
+        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim,
                                                    weights=[embedding_matrix],
                                                    trainable=False)
-        """
-        定义单向的RNN、GRU、LSTM层
-        your code
-        """
-        self.gru = tf.keras.layers.GRU(dec_units,
+        self.gru = tf.keras.layers.GRU(self.dec_units,
                                        return_sequences=True,
                                        return_state=True,
                                        recurrent_initializer='glorot_uniform')
-        # self.bigru = tf.keras.layers.Bidirectional(self.gru, merge_mode='concat')
         # self.dropout = tf.keras.layers.Dropout(0.5)
-        """
-        定义最后的fc层，用于预测词的概率
-        your code
-        """
-        self.fc = tf.keras.layers.Dense(vocab_size,
-                                        activation=tf.keras.activations.softmax)
+        self.fc = tf.keras.layers.Dense(vocab_size, activation=tf.keras.activations.softmax)
+        # self.fc = tf.keras.layers.Dense(vocab_size)
 
     def call(self, x, hidden, enc_output, context_vector):
-        # enc_output shape == (batch_size, max_length, hidden_size)
+        # def call(self, x, context_vector):
 
         # x shape after passing through embedding == (batch_size, 1, embedding_dim)
         x = self.embedding(x)
-        # print('x is ', x)
 
         # x shape after concatenation == (batch_size, 1, embedding_dim + hidden_size)
         x = tf.concat([tf.expand_dims(context_vector, 1), x], axis=-1)
@@ -86,8 +104,25 @@ class Decoder(tf.keras.layers.Layer):
         # output shape == (batch_size * 1, hidden_size)
         output = tf.reshape(output, (-1, output.shape[2]))
 
-        # output = self.dropout(output)
+        # output shape == (batch_size, vocab)
+        # out = self.dropout(output)
         out = self.fc(output)
 
         return x, out, state
 
+
+class Pointer(tf.keras.layers.Layer):
+
+    def __init__(self):
+        super(Pointer, self).__init__()
+        self.w_s_reduce = tf.keras.layers.Dense(1)
+        self.w_i_reduce = tf.keras.layers.Dense(1)
+        self.w_c_reduce = tf.keras.layers.Dense(1)
+
+    def call(self, context_vector, state, dec_inp):
+        """
+        return Pen系数
+        your code
+        return ...
+        """
+        return tf.nn.sigmoid(self.w_c_reduce(context_vector) + self.w_i_reduce(dec_inp) + self.w_s_reduce(state))
