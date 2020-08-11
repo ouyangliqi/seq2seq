@@ -1,6 +1,6 @@
 import tensorflow as tf
 import time
-from seq2seq_tf2.utils.losses import loss_function
+from seq2seq_pgn_tf2.utils.losses import loss_function
 
 START_DECODING = '[START]'
 

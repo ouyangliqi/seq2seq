@@ -14,7 +14,7 @@ def greedy_decode(model, dataset, vocab, params):
     # batch 操作轮数 math.ceil向上取整 小数 +1
     # 因为最后一个batch可能不足一个batch size 大小 ,但是依然需要计算
     steps_epoch = sample_size // batch_size + 1
-    
+
     for i in tqdm(range(steps_epoch)):
         enc_data, _ = next(iter(dataset))
         results += batch_greedy_decode(model, enc_data, vocab, params)
@@ -37,7 +37,7 @@ def batch_greedy_decode(model, enc_data, vocab, params):
     # dec_input = tf.expand_dims([vocab.word_to_id(vocab.START_DECODING)] * batch_size, 1)
     dec_input = tf.constant([2] * batch_size)
     dec_input = tf.expand_dims(dec_input, axis=1)
-    
+
     context_vector, _ = model.attention(dec_hidden, enc_output)
     for t in range(params['max_dec_len']):
         # 单步预测
@@ -52,7 +52,7 @@ def batch_greedy_decode(model, enc_data, vocab, params):
         predicted_ids = tf.argmax(prediction, 1).numpy()
         for index, predicted_id in enumerate(predicted_ids):
             predicts[index] += vocab.id_to_word(predicted_id) + ' '
-        
+
         # using teacher forcing
         dec_input = tf.expand_dims(predicted_ids, 1)
 
@@ -114,7 +114,6 @@ class Hypothesis:
 
 
 def beam_decode(model, batch, vocab, params):
-
     def decode_onestep(enc_inp, enc_outputs, dec_input, dec_state, enc_extended_inp,
                        batch_oov_len, enc_pad_mask, use_coverage, prev_coverage):
         """
@@ -130,16 +129,16 @@ def beam_decode(model, batch, vocab, params):
                 cov_vec : beam_size-many list of previous coverage vector
             Returns: A dictionary of the results of all the ops computations (see below for more details)
         """
-        final_dists, dec_hidden, attentions, p_gens = model(enc_outputs,  # shape=(3, 115, 256)
-                                                                       dec_state,  # shape=(3, 256)
-                                                                       enc_inp,  # shape=(3, 115)
-                                                                       enc_extended_inp,  # shape=(3, 115)
-                                                                       dec_input,  # shape=(3, 1)
-                                                                       batch_oov_len,  # shape=()
-                                                                       enc_pad_mask,  # shape=(3, 115)
-                                                                       use_coverage,
-                                                                       prev_coverage)  # shape=(3, 115, 1)
-
+        model_result = model(enc_outputs,  # shape=(3, 115, 256)
+                                                            dec_state,  # shape=(3, 256)
+                                                            enc_inp,  # shape=(3, 115)
+                                                            enc_extended_inp,  # shape=(3, 115)
+                                                            dec_input,  # shape=(3, 1)
+                                                            batch_oov_len,  # shape=()
+                                                            enc_pad_mask,  # shape=(3, 115)
+                                                            use_coverage,
+                                                            prev_coverage)  # shape=(3, 115, 1)
+        final_dists, dec_hidden, attentions, p_gens = model_result['logits'], model_result['dec_hidden'], model_result['attentions'], model_result['p_gens']
         top_k_probs, top_k_ids = tf.nn.top_k(tf.squeeze(final_dists), k=params["beam_size"] * 2)
         top_k_log_probs = tf.math.log(top_k_probs)
 
@@ -147,7 +146,7 @@ def beam_decode(model, batch, vocab, params):
                    "attention_vec": attentions,  # [batch_sz, max_len_x, 1]
                    "top_k_ids": top_k_ids,
                    "top_k_log_probs": top_k_log_probs,
-                   "p_gen": p_gens,
+                   "p_gen": p_gens
                    }
         return results
 
@@ -236,13 +235,13 @@ def beam_decode(model, batch, vocab, params):
         # print(np.squeeze(returns["p_gen"]))
         # np.squeeze(returns["p_gen"])
         # print('returns is ', returns["p_gen"])
-        topk_ids, topk_log_probs, new_states, attn_dists, p_gens = returns['top_k_ids'],\
-                                                                                   returns['top_k_log_probs'],\
-                                                                                   returns['dec_state'],\
-                                                                                   returns['attention_vec'],\
-                                                                                   returns["p_gen"],\
-
-        # print('topk_ids is ', topk_ids)
+        topk_ids, topk_log_probs, new_states, attn_dists, p_gens = returns['top_k_ids'], \
+                                                                   returns['top_k_log_probs'], \
+                                                                   returns['dec_state'], \
+                                                                   returns['attention_vec'], \
+                                                                   returns["p_gen"], \
+ \
+            # print('topk_ids is ', topk_ids)
         # print('topk_log_probs is ', topk_log_probs)
         all_hyps = []
         num_orig_hyps = 1 if steps == 0 else len(hyps)
